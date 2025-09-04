@@ -6,8 +6,11 @@
     <Device name="GW1NR-9C" pn="GW1NR-LV9QN88PC6/I5">gw1nr9c-004</Device>
     <FileList>
         <File path="src/LCD_Timing.v" type="file.verilog" enable="1"/>
+        <File path="src/LineBuffer.v" type="file.verilog" enable="1"/>
         <File path="src/Top.v" type="file.verilog" enable="1"/>
+        <File path="src/VideoSystem.v" type="file.verilog" enable="1"/>
         <File path="src/div.v" type="file.verilog" enable="1"/>
+        <File path="src/gowin_dpb/gowin_dpb.v" type="file.verilog" enable="1"/>
         <File path="src/gowin_rpll/pll162.v" type="file.verilog" enable="1"/>
         <File path="src/gowin_rpll/pll33.v" type="file.verilog" enable="1"/>
         <File path="src/psram_memory_interface_hs/psram_memory_interface_hs.v" type="file.verilog" enable="1"/>

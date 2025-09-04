@@ -15,11 +15,11 @@ module TOP
     output  [5:0] LCD_G,
     output  [4:0] LCD_B,
     
-    // UART (115200 baud for now)
+    // UART
     input         UART_RX,
     output        UART_TX,
 
-    // PSRAM pins
+    // PSRAM pins (unused for now)
     output [1:0]  O_psram_ck,
     output [1:0]  O_psram_ck_n,
     output [1:0]  O_psram_cs_n,
@@ -31,7 +31,6 @@ module TOP
     // --- Clocks / reset ---
     wire clk_psram;
     wire clk_pixel;
-    wire clk_sys = clk_pixel;
 
     wire pll_lock_psram, pll_lock_pixel, pll_lock;
     assign pll_lock = pll_lock_psram & pll_lock_pixel;
@@ -49,55 +48,84 @@ module TOP
         .clkin  (XTAL_IN)
     );
 
-    // --- PSRAM controller <-> arbiter bus ---
-    wire [20:0] psram_addr;
-    wire        psram_cmd, psram_cmd_en;
-    wire [63:0] psram_wr_data, psram_rd_data;
-    wire [7:0]  psram_mask;
-    wire        psram_rd_valid, init_calib, clk_out;
+    // --- generator FSM (checkerboard pattern) ---
+    reg [9:0]  gen_addr;
+    reg [23:0] gen_data;
+    reg        gen_wr_en;
+    reg        writing;
+    reg [9:0]  line_count;
 
-    PSRAM_Memory_Interface_HS_Top psram_inst (
-        .clk          (clk_sys),
-        .memory_clk   (clk_psram),
-        .pll_lock     (pll_lock),
+    // sync line_request into psram domain
+    wire line_request;
+    reg  line_req_meta, line_req_sync, line_req_last;
+    always @(posedge clk_psram or negedge rst_n) begin
+        if (!rst_n) begin
+            line_req_meta <= 0;
+            line_req_sync <= 0;
+            line_req_last <= 0;
+        end else begin
+            line_req_meta <= line_request;
+            line_req_sync <= line_req_meta;
+            line_req_last <= line_req_sync;
+        end
+    end
+    wire line_req_pulse = line_req_sync & ~line_req_last;
+
+    always @(posedge clk_psram or negedge rst_n) begin
+        if (!rst_n) begin
+            gen_addr   <= 0;
+            gen_wr_en  <= 0;
+            writing    <= 0;
+            line_count <= 0;
+            gen_data   <= 24'h000000;
+        end else begin
+            if (line_req_pulse) begin
+                // start writing new line
+                gen_addr   <= 0;
+                writing    <= 1;
+                line_count <= line_count + 1;
+            end else if (writing) begin
+                gen_wr_en <= 1;
+
+                // Checkerboard: alternate every 16 pixels
+                if ((gen_addr[4] ^ line_count[4]) == 1'b0)
+                    gen_data <= 24'h444444; // red
+                else
+                    gen_data <= 24'hEEEEEE; // blue
+
+                gen_addr <= gen_addr + 1;
+                if (gen_addr == 10'd799) begin
+                    writing   <= 0;
+                    gen_wr_en <= 0;
+                end
+            end else begin
+                gen_wr_en <= 0;
+            end
+        end
+    end
+
+    // --- hook up VideoSystem ---
+    wire [9:0] y_pos;
+
+    VideoSystem #(.H_RES(800)) video (
+        .clk_pixel    (clk_pixel),
+        .clk_psram    (clk_psram),
         .rst_n        (rst_n),
 
-        .O_psram_ck       (O_psram_ck),
-        .O_psram_ck_n     (O_psram_ck_n),
-        .IO_psram_dq      (IO_psram_dq),
-        .IO_psram_rwds    (IO_psram_rwds),
-        .O_psram_cs_n     (O_psram_cs_n),
-        .O_psram_reset_n  (O_psram_reset_n),
+        .wr_addr      (gen_addr),
+        .wr_data      (gen_data),
+        .wr_en        (gen_wr_en),
 
-        .wr_data      (psram_wr_data),
-        .rd_data      (psram_rd_data),
-        .rd_data_valid(psram_rd_valid),
-        .addr         (psram_addr),
-        .cmd          (psram_cmd),
-        .cmd_en       (psram_cmd_en),
-        .init_calib   (init_calib),
-        .clk_out      (clk_out),
-        .data_mask    (psram_mask)
-    );
+        .LCD_CLK      (LCD_CLK),
+        .LCD_HSYNC    (LCD_HSYNC),
+        .LCD_VSYNC    (LCD_VSYNC),
+        .LCD_DEN      (LCD_DEN),
+        .LCD_R        (LCD_R),
+        .LCD_G        (LCD_G),
+        .LCD_B        (LCD_B),
 
-    // --- LCD timing generator ---
-    wire [23:0] rgb_test;
-    wire [10:0] x_pos;
-    wire [9:0]  y_pos;
-
-    LCD_Timing lcd (
-        .PixelClk   (clk_pixel),
-        .nRST       (rst_n),
-        .LCD_CLK    (LCD_CLK),
-        .LCD_DE     (LCD_DEN),
-        .LCD_HSYNC  (LCD_HSYNC),
-        .LCD_VSYNC  (LCD_VSYNC),
-        .LCD_R      (LCD_R),
-        .LCD_G      (LCD_G),
-        .LCD_B      (LCD_B),
-        .rgb        (rgb_test),
-        .x_pos      (x_pos),
-        .y_pos      (y_pos)
+        .y_pos        (y_pos),
+        .line_request (line_request)
     );
 
 endmodule
