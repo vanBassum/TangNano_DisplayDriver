@@ -19,7 +19,7 @@ module TOP
     input         UART_RX,
     output        UART_TX,
 
-    // PSRAM pins
+    // PSRAM pins (unused for now)
     output [1:0]  O_psram_ck,
     output [1:0]  O_psram_ck_n,
     output [1:0]  O_psram_cs_n,
@@ -48,22 +48,50 @@ module TOP
         .clkin  (XTAL_IN)
     );
 
-    // --- VideoSystem ---
-    wire [9:0] y_pos;
-    wire       line_request;
+    // --- generator FSM (checkerboard pattern) ---
+    reg [9:0]  gen_addr;
+    reg [23:0] gen_data;
+    reg        gen_wr_en;
+    reg        writing;
+    reg [9:0]  line_count;
 
-    reg  [9:0]  wr_addr;
-    reg  [23:0] wr_data;
-    reg         wr_en;
+    always @(posedge clk_psram or negedge rst_n) begin
+        if (!rst_n) begin
+            gen_addr   <= 0;
+            gen_wr_en  <= 0;
+            writing    <= 0;
+            line_count <= 0;
+            gen_data   <= 24'h000000;
+        end else begin
+            if (line_request) begin
+                gen_addr   <= 0;
+                writing    <= 1;
+                line_count <= line_count + 1;
+            end else if (writing) begin
+                gen_wr_en <= 1;
+                gen_data  <= (gen_addr[4] ^ line_count[4]) ? 24'hEEEEEE : 24'h444444;
+                gen_addr  <= gen_addr + 1;
+                if (gen_addr == 10'd799) begin
+                    writing   <= 0;
+                    gen_wr_en <= 0;
+                end
+            end else begin
+                gen_wr_en <= 0;
+            end
+        end
+    end
+
+    // --- hook up VideoSystem ---
+    wire [9:0] y_pos;
 
     VideoSystem #(.H_RES(800)) video (
         .clk_pixel    (clk_pixel),
         .clk_psram    (clk_psram),
         .rst_n        (rst_n),
 
-        .wr_addr      (wr_addr),
-        .wr_data      (wr_data),
-        .wr_en        (wr_en),
+        .wr_addr      (gen_addr),
+        .wr_data      (gen_data),
+        .wr_en        (gen_wr_en),
 
         .LCD_CLK      (LCD_CLK),
         .LCD_HSYNC    (LCD_HSYNC),
@@ -76,45 +104,5 @@ module TOP
         .y_pos        (y_pos),
         .line_request (line_request)
     );
-
-
-    // --- Generator (test pattern in psram domain) ---
-    reg [9:0] gen_cnt;   // counts 0..799
-    reg       writing;
-
-    always @(posedge clk_psram or negedge rst_n) begin
-        if (!rst_n) begin
-            gen_cnt  <= 0;
-            wr_en    <= 0;
-            wr_addr  <= 0;
-            wr_data  <= 24'h000000;
-            writing  <= 0;
-        end else begin
-            wr_en <= 0; // default
-
-            if (line_request && !writing) begin
-                // start generating a new line
-                gen_cnt <= 0;
-                writing <= 1;
-            end else if (writing) begin
-                wr_en   <= 1;
-                wr_addr <= gen_cnt;
-
-                // Checkerboard: alternate every 16 pixels
-                if ((wr_addr[4] ^ y_pos[4]) == 1'b0)
-                    wr_data <= 24'h444444; // red
-                else
-                    wr_data <= 24'hEEEEEE; // blue
-
-
-                gen_cnt <= gen_cnt + 1;
-                if (gen_cnt == 10'd799) begin
-                    writing <= 0; // done with line
-                end
-            end
-        end
-    end
-
-
 
 endmodule
