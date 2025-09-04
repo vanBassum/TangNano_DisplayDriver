@@ -55,22 +55,6 @@ module TOP
     reg        writing;
     reg [9:0]  line_count;
 
-    // sync line_request into psram domain
-    wire line_request;
-    reg  line_req_meta, line_req_sync, line_req_last;
-    always @(posedge clk_psram or negedge rst_n) begin
-        if (!rst_n) begin
-            line_req_meta <= 0;
-            line_req_sync <= 0;
-            line_req_last <= 0;
-        end else begin
-            line_req_meta <= line_request;
-            line_req_sync <= line_req_meta;
-            line_req_last <= line_req_sync;
-        end
-    end
-    wire line_req_pulse = line_req_sync & ~line_req_last;
-
     always @(posedge clk_psram or negedge rst_n) begin
         if (!rst_n) begin
             gen_addr   <= 0;
@@ -79,21 +63,14 @@ module TOP
             line_count <= 0;
             gen_data   <= 24'h000000;
         end else begin
-            if (line_req_pulse) begin
-                // start writing new line
+            if (line_request) begin
                 gen_addr   <= 0;
                 writing    <= 1;
                 line_count <= line_count + 1;
             end else if (writing) begin
                 gen_wr_en <= 1;
-
-                // Checkerboard: alternate every 16 pixels
-                if ((gen_addr[4] ^ line_count[4]) == 1'b0)
-                    gen_data <= 24'h444444; // red
-                else
-                    gen_data <= 24'hEEEEEE; // blue
-
-                gen_addr <= gen_addr + 1;
+                gen_data  <= (gen_addr[4] ^ line_count[4]) ? 24'hEEEEEE : 24'h444444;
+                gen_addr  <= gen_addr + 1;
                 if (gen_addr == 10'd799) begin
                     writing   <= 0;
                     gen_wr_en <= 0;
