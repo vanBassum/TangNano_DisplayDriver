@@ -1,0 +1,52 @@
+[
+ {
+  "InstFile" : "C:/Workspace/TangNano_DisplayDriver/src/Top.v",
+  "InstLine" : 1,
+  "InstName" : "TOP",
+  "ModuleFile" : "C:/Workspace/TangNano_DisplayDriver/src/Top.v",
+  "ModuleLine" : 1,
+  "ModuleName" : "TOP",
+  "SubInsts" : [
+   {
+    "InstFile" : "C:/Workspace/TangNano_DisplayDriver/src/Top.v",
+    "InstLine" : 59,
+    "InstName" : "psram_inst",
+    "ModuleFile" : "C:/Workspace/TangNano_DisplayDriver/src/psram_memory_interface_hs/psram_memory_interface_hs.v",
+    "ModuleLine" : 9,
+    "ModuleName" : "PSRAM_Memory_Interface_HS_Top"
+   },
+   {
+    "InstFile" : "C:/Workspace/TangNano_DisplayDriver/src/Top.v",
+    "InstLine" : 40,
+    "InstName" : "pixelPll",
+    "ModuleFile" : "C:/Workspace/TangNano_DisplayDriver/src/gowin_rpll/pll33.v",
+    "ModuleLine" : 10,
+    "ModuleName" : "pll33"
+   },
+   {
+    "InstFile" : "C:/Workspace/TangNano_DisplayDriver/src/Top.v",
+    "InstLine" : 46,
+    "InstName" : "ramPll",
+    "ModuleFile" : "C:/Workspace/TangNano_DisplayDriver/src/gowin_rpll/pll162.v",
+    "ModuleLine" : 10,
+    "ModuleName" : "pll162"
+   },
+   {
+    "InstFile" : "C:/Workspace/TangNano_DisplayDriver/src/Top.v",
+    "InstLine" : 88,
+    "InstName" : "lcd",
+    "ModuleFile" : "C:/Workspace/TangNano_DisplayDriver/src/LCD_Timing.v",
+    "ModuleLine" : 1,
+    "ModuleName" : "LCD_Timing"
+   }
+  ]
+ },
+ {
+  "InstFile" : "C:/Workspace/TangNano_DisplayDriver/src/div.v",
+  "InstLine" : 4,
+  "InstName" : "clk_div",
+  "ModuleFile" : "C:/Workspace/TangNano_DisplayDriver/src/div.v",
+  "ModuleLine" : 4,
+  "ModuleName" : "clk_div"
+ }
+]

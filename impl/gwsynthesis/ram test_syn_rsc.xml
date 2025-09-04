@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Module name="TOP" Register="466" Alu="42" Lut="805" Bsram="2" T_Register="487(466)" T_Alu="42(42)" T_Lut="846(805)" T_Bsram="2(2)">
+    <SubModule name="pixelPll"/>
+    <SubModule name="ramPll"/>
+    <SubModule name="lcd" Register="21" Lut="41" T_Register="21(21)" T_Lut="41(41)"/>
+</Module>
