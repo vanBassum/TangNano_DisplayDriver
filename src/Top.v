@@ -48,30 +48,30 @@ module TOP
         .clkin  (XTAL_IN)
     );
 
-    // --- generator FSM (checkerboard pattern) ---
-    reg [9:0]  gen_addr;
+    // --- Generator FSM (checkerboard pattern) ---
+    reg [9:0]  gen_count;
     reg [23:0] gen_data;
     reg        gen_wr_en;
     reg        writing;
-    reg [9:0]  line_count;
+
+    wire [9:0] line_idx;
+    wire       line_req;
 
     always @(posedge clk_psram or negedge rst_n) begin
         if (!rst_n) begin
-            gen_addr   <= 0;
-            gen_wr_en  <= 0;
-            writing    <= 0;
-            line_count <= 0;
-            gen_data   <= 24'h000000;
+            gen_count <= 0;
+            gen_wr_en <= 0;
+            writing   <= 0;
         end else begin
-            if (line_request) begin
-                gen_addr   <= 0;
-                writing    <= 1;
-                line_count <= line_count + 1;
+            if (line_req && !writing) begin
+                writing   <= 1;
+                gen_count <= 0;
             end else if (writing) begin
                 gen_wr_en <= 1;
-                gen_data  <= (gen_addr[4] ^ line_count[4]) ? 24'hEEEEEE : 24'h444444;
-                gen_addr  <= gen_addr + 1;
-                if (gen_addr == 10'd799) begin
+                gen_data  <= (gen_count[3] ^ line_idx[3]) ? 24'hFF0000 : 24'h0000FF;
+                gen_count <= gen_count + 1;
+
+                if (gen_count == 10'd799) begin
                     writing   <= 0;
                     gen_wr_en <= 0;
                 end
@@ -81,28 +81,25 @@ module TOP
         end
     end
 
-    // --- hook up VideoSystem ---
-    wire [9:0] y_pos;
-
-    VideoSystem #(.H_RES(800)) video (
+    // --- Hook up VideoSystem ---
+    VideoSystem video (
         .clk_pixel    (clk_pixel),
         .clk_psram    (clk_psram),
         .rst_n        (rst_n),
 
-        .wr_addr      (gen_addr),
+        .wr_addr      (gen_count),
         .wr_data      (gen_data),
         .wr_en        (gen_wr_en),
-
+        .line_idx     (line_idx),
+        .line_req     (line_req),
+        
         .LCD_CLK      (LCD_CLK),
         .LCD_HSYNC    (LCD_HSYNC),
         .LCD_VSYNC    (LCD_VSYNC),
         .LCD_DEN      (LCD_DEN),
         .LCD_R        (LCD_R),
         .LCD_G        (LCD_G),
-        .LCD_B        (LCD_B),
-
-        .y_pos        (y_pos),
-        .line_request (line_request)
+        .LCD_B        (LCD_B)
     );
 
 endmodule

@@ -7,6 +7,8 @@
     <FileList>
         <File path="src/LCD_Timing.v" type="file.verilog" enable="1"/>
         <File path="src/LineBuffer.v" type="file.verilog" enable="1"/>
+        <File path="src/SyncLevel.v" type="file.verilog" enable="1"/>
+        <File path="src/SyncPulse.v" type="file.verilog" enable="1"/>
         <File path="src/Top.v" type="file.verilog" enable="1"/>
         <File path="src/VideoSystem.v" type="file.verilog" enable="1"/>
         <File path="src/div.v" type="file.verilog" enable="1"/>
