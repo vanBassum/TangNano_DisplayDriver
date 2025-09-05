@@ -16,8 +16,8 @@ module VideoSystem #(
     input      [9:0]   wr_addr,
     input      [23:0]  wr_data,
     input              wr_en,
-    output     [9:0]   line_idx,   // requested line index (visible+1, or 0 for preload)
-    output             line_req,   // high during active/preload line window
+    output     [9:0]   line_idx,   // current line index (visible only)
+    output             line_req,   // pulse per line (PSRAM domain)
 
     // LCD interface
     output             LCD_CLK,
@@ -66,63 +66,41 @@ module VideoSystem #(
                   (line_count  <  V_SYNC + V_BP + V_ACTIVE);
     assign LCD_DEN = lcd_de;
 
-    // --- Requested line index (next visible, clamp to 0 for preload) ---
-    assign line_idx = (line_count >= V_SYNC + V_BP) ?
-                      (line_count - (V_SYNC + V_BP) + 1) :
-                      10'd0;
+    // --- Line index (only valid during visible lines) ---
+    assign line_idx = (line_count >= V_SYNC + V_BP &&
+                       line_count <  V_SYNC + V_BP + V_ACTIVE)
+                      ? (line_count - (V_SYNC + V_BP))
+                      : 10'd0;
 
-    // --- Line request: high only during active pixels (H_ACTIVE wide) ---
-    wire in_visible_line = (line_count >= V_SYNC + V_BP - 1) &&
-                           (line_count <  V_SYNC + V_BP + V_ACTIVE);
-    
-    // --- Sync line_req into PSRAM domain (level) ---
-    SyncLevel u_sync_line (
+    // --- Line request pulse: high for one pixel at x==0 ---
+    wire line_req_pix = (pixel_count == 0);
+
+    // --- Synchronize into PSRAM domain ---
+    SyncPulse u_sync_line (
         .clk_dst   (clk_psram),
         .rst_n     (rst_n),
-        .level_in  (in_visible_line && lcd_de),
-        .level_out (line_req)
+        .pulse_in  (line_req_pix),
+        .pulse_out (line_req)
     );
 
-    // toggle buffer at end of *visible* region
-    reg buf_select_r;
-    always @(posedge clk_pixel or negedge rst_n) begin
-        if (!rst_n)
-            buf_select_r <= 0;
-        else if (pixel_count == 0 &&
-                 line_count >= V_SYNC + V_BP &&
-                 line_count <  V_SYNC + V_BP + V_ACTIVE)
-            buf_select_r <= ~buf_select_r;
-    end
-
-    // --- Sync buffer select to PSRAM domain ---
-    wire buf_sel_sync;
-    SyncLevel u_sync_buf (
-        .clk_dst   (clk_psram),
-        .rst_n     (rst_n),
-        .level_in  (buf_select_r),
-        .level_out (buf_sel_sync)
-    );
-
-    // --- Line buffers ---
+    // --- Single line buffer ---
     wire [23:0] buf_pixel;
-    wire [9:0] visPx = pixel_count - (H_SYNC + H_BP);
+    wire [9:0]  visPx = pixel_count - (H_SYNC + H_BP);
 
+    LineBuffer lbuf (
+        .wr_clk  (clk_psram),
+        .wr_en   (wr_en),
+        .wr_addr (wr_addr),
+        .wr_data (wr_data),
 
-    LineBuffers buffers (
-        .clk_pixel  (clk_pixel),
-        .clk_psram  (clk_psram),
-        .rst_n      (rst_n),
-        .buf_switch (buf_sel_sync),
-        .wr_addr    (wr_addr),
-        .wr_data    (wr_data),
-        .wr_en      (wr_en),
-        .rd_addr    (visPx),
-        .rd_data    (buf_pixel)
+        .rd_clk  (clk_pixel),
+        .rd_addr (visPx),
+        .rd_data (buf_pixel)
     );
 
-    assign LCD_R = buf_pixel[23:19] | 5'b01111;   // take top 5 bits + bias
-    assign LCD_G = buf_pixel[15:10] | 6'b011111;  // already 6 bits, add bias
-    assign LCD_B = buf_pixel[7:3]   | 5'b01111;   // already 5 bits, add bias
-
+    // --- RGB output (with bias so nothing is 100% black) ---
+    assign LCD_R = buf_pixel[23:19] | 5'b00111;
+    assign LCD_G = buf_pixel[15:10] | 6'b001111;
+    assign LCD_B = buf_pixel[7:3]   | 5'b00111;
 
 endmodule
