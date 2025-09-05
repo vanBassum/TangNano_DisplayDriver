@@ -68,7 +68,7 @@ module TOP
                 gen_count <= 0;
             end else if (writing) begin
                 gen_wr_en <= 1;
-                gen_data  <= (gen_count[3] ^ line_idx[3]) ? 24'h888888 : 24'h444444;
+                gen_data  <= (gen_count[4] ^ line_idx[4]) ? 24'hFFFFFF : 24'h888888;
                 gen_count <= gen_count + 1;
 
                 if (gen_count == 10'd799) begin

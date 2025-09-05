@@ -99,8 +99,8 @@ module VideoSystem #(
     );
 
     // --- RGB output (with bias so nothing is 100% black) ---
-    assign LCD_R = buf_pixel[23:19] | 5'b00111;
-    assign LCD_G = buf_pixel[15:10] | 6'b001111;
-    assign LCD_B = buf_pixel[7:3]   | 5'b00111;
+    assign LCD_R = buf_pixel[23:19];
+    assign LCD_G = buf_pixel[15:10];
+    assign LCD_B = buf_pixel[7:3];
 
 endmodule
